@@ -17,6 +17,7 @@ import {
 
 type MealOption = 'Yes' | 'No';
 type GoodiesOption = 'Yes' | 'No';
+const API_ENDPOINT = 'https://ioittenet.com/api/attendance';
 
 export default function AttendanceScanner() {
     const [id, setId] = useState('');
@@ -27,12 +28,21 @@ export default function AttendanceScanner() {
     const [isScanning, setIsScanning] = useState(false);
     const [permission, requestPermission] = useCameraPermissions();
     const [scanned, setScanned] = useState(false);
+    const [attendanceData, setAttendanceData] = useState<{
+        id: string;
+        eventName: string;
+        attendanceMarked: boolean;
+        timestamp: string | null;
+        meal: string;
+        goodies: string;
+    } | null>(null);
 
     const resetForm = () => {
         setId('');
         setMeal('No');
         setGoodies('No');
         setScanned(false);
+        setAttendanceData(null);
     };
 
     const markAttendance = async (scannedId?: string) => {
@@ -42,10 +52,9 @@ export default function AttendanceScanner() {
             Alert.alert('Validation Error', 'Please provide both Attendee ID and Event Name');
             return;
         }
-
         setIsSubmitting(true);
         try {
-            const response = await fetch('https://ioittenet.com/api/attendance', {
+            const response = await fetch(API_ENDPOINT, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -56,7 +65,6 @@ export default function AttendanceScanner() {
                     eventName: eventName.trim(),
                 }),
             });
-
             const result = await response.json();
             if (response.ok) {
                 Alert.alert(
@@ -82,6 +90,57 @@ export default function AttendanceScanner() {
         }
     };
 
+    const fetchAttendance = async (scannedId?: string) => {
+        const attendeeId = scannedId ?? id;
+        if (!attendeeId.trim() || !eventName.trim()) {
+            Alert.alert('Validation Error', 'Please provide both Attendee ID and Event Name');
+            return;
+        }
+        setIsSubmitting(true);
+        try {
+            const response = await fetch(
+                `${API_ENDPOINT}?id=${encodeURIComponent(attendeeId)}&eventName=${encodeURIComponent(eventName)}`
+            );
+            const text = await response.text();
+            console.log('Raw response:', text);
+            const result = text ? JSON.parse(text) : {};
+            if (response.ok) {
+                setAttendanceData(result.data);
+                if (result.data.attendanceMarked) {
+                    Alert.alert(
+                        'Attendance Found',
+                        `ID: ${result.data.id}\nMeal: ${result.data.meal}\nGoodies: ${result.data.goodies}`,
+                        [
+                            { text: 'Cancel', style: 'cancel' },
+                            {
+                                text: 'Update', onPress: () => {
+                                    setMeal(result.data.meal as MealOption);
+                                    setGoodies(result.data.goodies as GoodiesOption);
+                                }
+                            },
+                        ]
+                    );
+                } else {
+                    Alert.alert(
+                        'No Attendance Found',
+                        `ID: ${result.data.id}\nMark attendance?`,
+                        [
+                            { text: 'Cancel', style: 'cancel' },
+                            { text: 'Mark', onPress: () => markAttendance(attendeeId) },
+                        ]
+                    );
+                }
+            } else {
+                Alert.alert('Error', result.message || 'Failed to fetch data');
+            }
+        } catch (err) {
+            console.error('Fetch error:', err);
+            Alert.alert('Network Error', 'Please check your connection and try again.');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     const handleManualSubmit = async () => {
         await markAttendance();
     };
@@ -91,7 +150,7 @@ export default function AttendanceScanner() {
         setScanned(true);
         setId(data.trim());
         setIsScanning(false);
-        markAttendance(data.trim());
+        fetchAttendance(data.trim());
     };
 
     const startScanner = async () => {
@@ -119,24 +178,23 @@ export default function AttendanceScanner() {
                     facing="back"
                     onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
                     barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-                >
-                    <View style={styles.scannerOverlay}>
-                        <View style={styles.scannerHeader}>
-                            <Text style={styles.scannerTitle}>Point camera at QR code</Text>
-                        </View>
-                        <View style={styles.scannerFrame}>
-                            <View style={[styles.corner, styles.topLeft]} />
-                            <View style={[styles.corner, styles.topRight]} />
-                            <View style={[styles.corner, styles.bottomLeft]} />
-                            <View style={[styles.corner, styles.bottomRight]} />
-                        </View>
-                        <View style={styles.scannerFooter}>
-                            <TouchableOpacity style={styles.cancelButton} onPress={stopScanner} disabled={isSubmitting}>
-                                <Text style={styles.cancelButtonText}>Cancel Scan</Text>
-                            </TouchableOpacity>
-                        </View>
+                />
+                <View style={styles.scannerOverlay}>
+                    <View style={styles.scannerHeader}>
+                        <Text style={styles.scannerTitle}>Point camera at QR code</Text>
                     </View>
-                </CameraView>
+                    <View style={styles.scannerFrame}>
+                        <View style={[styles.corner, styles.topLeft]} />
+                        <View style={[styles.corner, styles.topRight]} />
+                        <View style={[styles.corner, styles.bottomLeft]} />
+                        <View style={[styles.corner, styles.bottomRight]} />
+                    </View>
+                    <View style={styles.scannerFooter}>
+                        <TouchableOpacity style={styles.cancelButton} onPress={stopScanner} disabled={isSubmitting}>
+                            <Text style={styles.cancelButtonText}>Cancel Scan</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
             </View>
         );
     }
@@ -149,21 +207,25 @@ export default function AttendanceScanner() {
             <ScrollView contentContainerStyle={styles.scrollContent}>
                 <ThemedView style={styles.content}>
                     <View style={styles.header}>
-                        <ThemedText type="title" style={styles.title}>
-                            Event Attendance
-                        </ThemedText>
-                        <ThemedText style={styles.subtitle}>Scan a QR code or enter an ID manually</ThemedText>
                     </View>
-
                     <TouchableOpacity
                         style={[styles.scanButton, isSubmitting && styles.buttonDisabled]}
                         onPress={startScanner}
                         disabled={isSubmitting}
                         activeOpacity={0.8}
                     >
-                        <Text style={styles.scanButtonText}> Scan QR Code</Text>
+                        <Text style={styles.scanButtonText}>Scan QR Code</Text>
                     </TouchableOpacity>
-
+                    {attendanceData && (
+                        <View style={styles.dataCard}>
+                            <ThemedText style={styles.dataTitle}>Attendance Data</ThemedText>
+                            <ThemedText>ID: {attendanceData.id}</ThemedText>
+                            <ThemedText>Event: {attendanceData.eventName}</ThemedText>
+                            <ThemedText>Attendance: {attendanceData.attendanceMarked ? 'Marked' : 'Not Marked'}</ThemedText>
+                            <ThemedText>Meal: {attendanceData.meal}</ThemedText>
+                            <ThemedText>Goodies: {attendanceData.goodies}</ThemedText>
+                        </View>
+                    )}
                     <View style={styles.form}>
                         <View style={styles.inputGroup}>
                             <Text style={styles.label}>Attendee ID *</Text>
@@ -177,7 +239,6 @@ export default function AttendanceScanner() {
                                 autoCapitalize="characters"
                             />
                         </View>
-
                         <View style={styles.inputGroup}>
                             <Text style={styles.label}>Event Name *</Text>
                             <TextInput
@@ -189,7 +250,6 @@ export default function AttendanceScanner() {
                                 editable={!isSubmitting}
                             />
                         </View>
-
                         <View style={styles.row}>
                             <View style={[styles.inputGroup, styles.halfWidth]}>
                                 <Text style={styles.label}>Meal</Text>
@@ -212,7 +272,6 @@ export default function AttendanceScanner() {
                                     </TouchableOpacity>
                                 </View>
                             </View>
-
                             <View style={[styles.inputGroup, styles.halfWidth]}>
                                 <Text style={styles.label}>Goodies</Text>
                                 <View style={styles.pickerContainer}>
@@ -235,7 +294,6 @@ export default function AttendanceScanner() {
                                 </View>
                             </View>
                         </View>
-
                         <TouchableOpacity
                             style={[
                                 styles.submitButton,
@@ -248,11 +306,10 @@ export default function AttendanceScanner() {
                             {isSubmitting ? (
                                 <ActivityIndicator color="#fff" />
                             ) : (
-                                <Text style={styles.submitButtonText}>Mark Attendance Manually</Text>
+                                <Text style={styles.submitButtonText}>Mark Attendance</Text>
                             )}
                         </TouchableOpacity>
                     </View>
-
                     <Text style={styles.footer}>Fields marked with * are required</Text>
                 </ThemedView>
             </ScrollView>
@@ -263,33 +320,17 @@ export default function AttendanceScanner() {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#1F2937' },
     scrollContent: { flexGrow: 1, justifyContent: 'center' },
-    content: { flex: 1, padding: 20,paddingVertical: 150, maxWidth: 500, width: '100%', alignSelf: 'center' },
+    content: { flex: 1, padding: 20, paddingVertical: 150, maxWidth: 500, width: '100%', alignSelf: 'center' },
     header: { alignItems: 'center', marginBottom: 24 },
     title: { fontSize: 28, fontWeight: 'bold', color: '#F9FAFB', marginBottom: 8 },
     subtitle: { fontSize: 14, color: '#9CA3AF', textAlign: 'center' },
-
-    scanButton: {
-        backgroundColor: '#3B82F6',
-        padding: 16,
-        borderRadius: 12,
-        alignItems: 'center',
-        marginBottom: 20,
-    },
+    scanButton: { backgroundColor: '#3B82F6', padding: 16, borderRadius: 12, alignItems: 'center', marginBottom: 20 },
     scanButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-    submitButton: {
-        backgroundColor: '#3B82F6',
-        padding: 16,
-        borderRadius: 12,
-        alignItems: 'center',
-        marginTop: 8,
-    },
+    submitButton: { backgroundColor: '#3B82F6', padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 8 },
     submitButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
     buttonDisabled: { backgroundColor: '#60A5FA', opacity: 0.6 },
-
-    divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 20 },
-    dividerLine: { flex: 1, height: 1, backgroundColor: '#374151' },
-    dividerText: { paddingHorizontal: 12, color: '#9CA3AF', fontSize: 14 },
-
+    dataCard: { backgroundColor: '#374151', padding: 16, borderRadius: 12, marginTop: 20 },
+    dataTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 8, color: '#F9FAFB' },
     form: { gap: 20 },
     inputGroup: { gap: 8 },
     label: { fontSize: 14, fontWeight: '500', color: '#D1D5DB' },
@@ -317,12 +358,23 @@ const styles = StyleSheet.create({
     pickerButtonActive: { backgroundColor: '#3B82F6', borderColor: '#3B82F6' },
     pickerButtonText: { fontSize: 16, color: '#D1D5DB' },
     pickerButtonTextActive: { color: '#fff', fontWeight: '600' },
-
     footer: { textAlign: 'center', fontSize: 12, color: '#9CA3AF', marginTop: 16 },
-
-    scannerContainer: { flex: 1 },
-    camera: { flex: 1 },
-    scannerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'space-between' },
+    scannerContainer: {
+        flex: 1,
+        position: 'relative',
+    },
+    camera: {
+        flex: 1,
+    },
+    scannerOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        justifyContent: 'space-between',
+    },
     scannerHeader: { padding: 20, alignItems: 'center', paddingTop: Platform.OS === 'ios' ? 60 : 40 },
     scannerTitle: { color: '#fff', fontSize: 18, fontWeight: '600' },
     scannerFrame: { alignSelf: 'center', width: 250, height: 250, position: 'relative' },
