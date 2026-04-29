@@ -1,8 +1,23 @@
-# Welcome to your Expo app 👋
+# TT Scan - IOIT TENET Attendance Scanner
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A mobile attendance marking application built for **TENET 2025** (IOIT's annual tech event). Scan QR codes or manually enter attendee IDs to mark attendance, track meal and goodies selections.
 
-## Get started
+## Features
+
+- **QR Code Scanning** - Scan attendee QR codes using the device camera
+- **Manual Entry** - Enter Attendee ID manually when QR scanning isn't available
+- **Meal & Goodies Tracking** - Track meal and goodies preferences for each attendee
+- **Event Support** - Configure event name for multi-event scenarios
+- **Real-time Sync** - Attendance is synced to the server in real-time
+
+## Tech Stack
+
+- **Framework**: [Expo](https://expo.dev) (React Native)
+- **Language**: TypeScript
+- **Navigation**: expo-router
+- **Camera**: expo-camera
+
+## Getting Started
 
 1. Install dependencies
 
@@ -10,41 +25,25 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    npm install
    ```
 
-2. Start the app
+2. Start the development server
 
    ```bash
    npx expo start
    ```
 
-In the output, you'll find options to open the app in a
+3. Run on your preferred platform:
+   - **Android**: `npx expo run:android`
+   - **iOS**: `npx expo run:ios`
+   - **Web**: `npx expo start --web`
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## App Preview
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+![App Screenshot](./assets/images/screenshot.png)
 
-## Get a fresh project
+## Usage
 
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+1. **Scan QR Code**: Tap the scan button to open the camera and scan an attendee's QR code
+2. **Manual Entry**: Enter the Attendee ID (e.g., A123) in the input field
+3. **Select Event**: Choose or enter the event name (default: Hackathon)
+4. **Meal/Goodies**: Toggle meal and goodies preferences
+5. **Submit**: Tap "Mark Attendance" to submit
